@@ -1,4 +1,5 @@
-﻿using Spider.Log;
+﻿using GanZSpider.Spider;
+using Spider.Log;
 using Spider.Page;
 using Spider.Spider;
 using SpiderApp.entity;
@@ -10,6 +11,7 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,7 +60,10 @@ namespace Spider
                 }
                
             }
-          
+            //配置更新
+            Program.sysPara.BegSpiderIntervalTime =Convert.ToInt32(spidertime.Value*1000);
+            Program.sysPara.IsProxy = useproxy.Checked ? "true" : "false";
+
 
 
             btnStart.Enabled = false;
@@ -99,8 +104,12 @@ namespace Spider
                     //dbThread.Abort();
                     Thread.Sleep(20000);
                     LogThread.Abort();
-                    clsLog.AddLog(DateTime.Now.ToString(), "抓取结束");
-                    txtview.AppendText("抓取船源结束" + Environment.NewLine);
+                    clsLog.AddLog(DateTime.Now.ToString(), "第" + Program.CurrSpiderTimes+"次抓取结束");
+                    Program.CurrSpiderTimes++;
+                    clsLog.AddLog(DateTime.Now.ToString(),"第"+ Program.CurrSpiderTimes+ "次开始");
+                    //入口方法
+                    spiderMain();
+
                 }
                 Application.DoEvents();
             };
@@ -108,15 +117,15 @@ namespace Spider
 
             Program.helper.OntxtviewCompleted += (senders, es) =>
             {
-                if (Program.clsUrlSignal == 0 && Program.clsContentSignal == 0 && Program.clsDBSignal == 0)
-                {
+              
                     EventControllerArgs _tem = es as EventControllerArgs;
                     txtview.AppendText(_tem.Msg + Environment.NewLine);
-                }
+                
                 Application.DoEvents();
             };
 
             #endregion
+
 
             //入口方法
             spiderMain();
@@ -130,21 +139,65 @@ namespace Spider
         {
             ClsLog clsLog = new ClsLog();
             clsLog.AddLog(DateTime.Now.ToString(), "入口抓取开始");
+            Program.helper.OntxtviewCompleted(this, new EventControllerArgs() { IsSuccess = true, Msg = "入口抓取开始" });
+
             bool flag = false;
-            int CurrSpiderTimes = 1;
+
             ClsPageUrl clsPageUrl = new ClsPageUrl();
+            Program.helper.OntxtviewCompleted(this, new EventControllerArgs() { IsSuccess = true, Msg = "开始登陆" });
+            foreach (user item in Program.userList)
+            {
+                CookieContainer cookie = new CookieContainer();
+                HttpClient httpClient = new HttpClient("",0,false, cookie);
+                Program.helper.OntxtviewCompleted(this, new EventControllerArgs() { IsSuccess = true, Msg = item.userName+"登陆" });
+                string content = httpClient.GetResponse("", "http://t.cjcyw.com:8081/login", "Post", "pwd="+ item .psw+ "&userid="+item.userName+"");
+                item.cookie = httpClient.Cookie;
+                item.cookieContainer = httpClient.cookieContainer; ;
+            }
+
+
 
             Control.CheckForIllegalCrossThreadCalls = false;
+            if (url_comb.Text == "全部")
+            {
+                //船源
+                clsPageUrl.AddPageUrl("ProgramName", "", "", "cyPortal", "", "", "http://t.cjcyw.com:8081/ship/list",
+                "GET", "", "utf-8", "", null, "", 1, 1);
+                //货源
+                clsPageUrl.AddPageUrl("ProgramName", "", "", "hyPortal", "", "", "http://t.cjcyw.com:8081/goods/list",
+     "GET", "", "utf-8", "", null, "", 1, 1);
 
-            //船源
-            clsPageUrl.AddPageUrl("ProgramName", "", "", "cyPortal", "", "", "http://cht.cjsyw.com:8080/ShipSource/listSS.aspx?pageno=1",
-            "GET", "", "utf-8","", null, "", 1, 1);
-            //货源
-            clsPageUrl.AddPageUrl("ProgramName", "", "", "hyPortal", "", "", "http://cht.cjsyw.com:8080/Goods/listGoods.aspx?pageno=1",
- "GET", "", "utf-8", "", null, "", 1, 1);
-            //船舶档案
-            clsPageUrl.AddPageUrl("ProgramName", "", "", "cydaPortal", "", "", "http://cht.cjsyw.com:8080/Boat/BoatList.aspx?pageno=1",
- "GET", "", "utf-8", "", null, "", 1, 1);
+                for (int i = 1; i <= nmccda.Value; i++)
+                {
+                    //船舶档案
+                    clsPageUrl.AddPageUrl("ProgramName", "", "", "cydaPortal", "", "", "http://t.cjcyw.com:8081/Boat/BoatList.aspx?pageno=" + i + "&&",
+     "GET", "", "utf-8", "", null, "", 1, 1);
+                }
+
+            }
+            else if (url_comb.Text == "船源")
+            {
+                //船源
+                clsPageUrl.AddPageUrl("ProgramName", "", "", "cyPortal", "", "", "http://t.cjcyw.com:8081/ship/list",
+                "GET", "", "utf-8", "", null, "", 1, 1);
+            }
+            else if (url_comb.Text == "货源")
+            {
+                //货源
+                clsPageUrl.AddPageUrl("ProgramName", "", "", "hyPortal", "", "", "http://t.cjcyw.com:8081/goods/list",
+     "GET", "", "utf-8", "", null, "", 1, 1);
+            }
+            else if (url_comb.Text == "船舶档案")
+            {
+                for (int i = 1; i <= nmccda.Value; i++)
+                {
+                    //船舶档案
+                    clsPageUrl.AddPageUrl("ProgramName", "", "", "cydaPortal", "", "", "http://t.cjcyw.com:8081/Boat/BoatList.aspx?pageno=" + i + "&&",
+     "GET", "", "utf-8", "", null, "", 1, 1);
+                }
+            }
+
+      
 
 
         }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
@@ -28,5 +29,8 @@ namespace SpiderApp.entity
         public string token { get; set; }
         [XmlAttribute("cookie")]
         public string cookie { get; set; }
+
+        public CookieContainer cookieContainer { get; set; }
+
     }
 }

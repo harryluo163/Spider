@@ -26,6 +26,7 @@ namespace GanZSpider.Spider
         public string AcceptLanguage { set { ChangeHeaders("Accept-Language", value); } }
         public string Accept { set { ChangeHeaders("Accept", value); } }
         public string Cookie { get; set; }
+        public CookieContainer cookieContainer { get; set; }
         public string AcceptEncoding { set { ChangeHeaders("Accept-Encoding", value); } }
         public string ContentType { get; set; }
         public string Charset { set { ChangeHeaders("Accept-Charset", value); } }
@@ -39,13 +40,14 @@ namespace GanZSpider.Spider
             _client.DefaultRequestHeaders.Add(name, newHeaders);
         }
 
-        public HttpClient(string Host, int Port, Boolean useproxy)
+        public HttpClient(string Host, int Port, Boolean useproxy, CookieContainer cookieContainer)
         {
             ContentType = "application/x-www-form-urlencoded";
             if (useproxy)
             {
                 handler = new HttpClientHandler()
                 {
+                    CookieContainer = cookieContainer,
                     UseCookies = true,
                     AllowAutoRedirect = true,
                     AutomaticDecompression = DecompressionMethods.GZip, //设置自动解压
@@ -57,6 +59,7 @@ namespace GanZSpider.Spider
             {
                 handler = new HttpClientHandler()
                 {
+                    CookieContainer = cookieContainer,
                     UseCookies = true,
                     AllowAutoRedirect = true,
                     AutomaticDecompression = DecompressionMethods.GZip, //设置自动解压
@@ -140,16 +143,30 @@ namespace GanZSpider.Spider
                 {
                     try
                     {
-                        //CookieCollection cookieCollection = handler.CookieContainer.GetCookies(uri);
-                        //var list = new List<string>();
-                        //if (cookieCollection.Count > 0)
-                        //{
-                        //    for (int i = 0; i < cookieCollection.Count; i++)
-                        //    {
-                        //        list.Add(cookieCollection[i].Name + "=" + cookieCollection[i].Value + "=" + cookieCollection[i].Domain);
-                        //    }
-                        //    Cookie = string.Join("|", list);
-                        //}
+                        CookieCollection cookieCollection = handler.CookieContainer.GetCookies(uri);
+                        var list = new List<string>();
+                        if (cookieCollection.Count > 0)
+                        {
+                            for (int i = 0; i < cookieCollection.Count; i++)
+                            {
+                                list.Add(cookieCollection[i].Name + "=" + cookieCollection[i].Value + "=" + cookieCollection[i].Domain);
+                            }
+                            Cookie = string.Join("|", list);
+                        }
+                        if (!string.IsNullOrEmpty(Cookie)) {
+                            CookieContainer _cookieContainer = new CookieContainer();
+                            string[] coos = Cookie.Split('|');
+                            foreach (var c in coos)
+                            {
+                                string key = c.Split('=')[0];
+                                string value = c.Split('=')[1];
+                                string domain = c.Split('=')[2];
+                                var coo = new Cookie(key, value, "/", domain);
+                                _cookieContainer.Add(coo);   // 加入Cookie
+                            }
+                            cookieContainer = _cookieContainer;
+                        }
+                   
                     }
                     catch (Exception ex)
                     {

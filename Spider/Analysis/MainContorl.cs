@@ -1,4 +1,5 @@
 ﻿using DataSpider.Page;
+using GanZSpider.Spider;
 using Spider.Common;
 using Spider.DbHelp;
 using Spider.Log;
@@ -31,12 +32,12 @@ namespace Spider.Analysis
                 ClsDB clsDB = new ClsDB();
                 RegFunc rf = new RegFunc();
 
-                ArrayList arrayList = rf.GetStrArr(pContent, "\"id\":", ",");
-                for (int i = 0; i < arrayList.Count; i++)
+                ArrayList arrayList = rf.GetStrArr(pContent, "\"aid\":", ",");
+                for (int i = 0; i < 1; i++)
                 {
-                    string nexurl = "http://cht.cjsyw.com:8080/ShipSource/getSSDetail.aspx?userid=" + getuser().token + "&kcid=" + arrayList[i].ToString() + "";
+                    string nexurl = "http://t.cjcyw.com:8081/ship/detail";
                     clsPageUrl.AddPageUrl(entity.ProgramName, entity.KeyWord, entity.PID, "cyDetail", entity.SiteUrl, entity.Url, nexurl,
-                    "GET", "", entity.EnCode, arrayList[i].ToString(), entity.CookieContent, entity.AContent, entity.TrySpiderTimes, entity.Depth + 1);
+                    "POST", "aid="+arrayList[i].ToString(), entity.EnCode, "aid=" + arrayList[i].ToString(), getuser().cookieContainer, entity.AContent, entity.TrySpiderTimes, entity.Depth + 1);
 
                 }
             }
@@ -64,7 +65,7 @@ namespace Spider.Analysis
                 for (int i = 0; i < arrayList.Count; i++)
                 {
 
-                    string nexurl = "http://cht.cjsyw.com:8080//Goods/FindGoodsDetails.aspx?userid=" + getuser().token + "&hwid=" + arrayList[i].ToString() + "";
+                    string nexurl = "http://t.cjcyw.com:8081//Goods/FindGoodsDetails.aspx?userid=" + getuser().token + "&hwid=" + arrayList[i].ToString() + "";
                     clsPageUrl.AddPageUrl(entity.ProgramName, entity.KeyWord, entity.PID, "hyDetail", entity.SiteUrl, entity.Url, nexurl,
                     "GET", "", entity.EnCode, arrayList[i].ToString(), entity.CookieContent, entity.AContent, entity.TrySpiderTimes, entity.Depth + 1);
 
@@ -94,11 +95,11 @@ namespace Spider.Analysis
                 ClsDB clsDB = new ClsDB();
                 RegFunc rf = new RegFunc();
 
-                ArrayList arrayList = rf.GetStrArr(pContent, "\"id\":", ",");
+                ArrayList arrayList = rf.GetStrArr(pContent, "\"boatid\":", ",");
                 for (int i = 0; i < arrayList.Count; i++)
                 {
                  
-                    string nexurl = "http://cht.cjsyw.com:8080/Boat/getBoatById.aspx?userid=" + getuser().token + "&id=" + arrayList[i].ToString() + "";
+                    string nexurl = "http://t.cjcyw.com:8081/Boat/getBoatById.aspx?userid=" + getuser().token + "&id=" + arrayList[i].ToString() + "";
                     clsPageUrl.AddPageUrl(entity.ProgramName, entity.KeyWord, entity.PID, "cydaDetail", entity.SiteUrl, entity.Url, nexurl,
                     "GET", "", entity.EnCode, arrayList[i].ToString(), entity.CookieContent, entity.AContent, entity.TrySpiderTimes, entity.Depth + 1);
 
@@ -131,87 +132,109 @@ namespace Spider.Analysis
                 user user = getuser();
                 if (rf.GetStr(content2, "\"mobile\":\"", "\",") == "操作频繁稍后再试！")
                 {
-                    controllerArgs.Msg = "操作频繁切换用户补抓" + user.token;
+                    controllerArgs.Msg = "操作频繁切换用户补抓" + user.userName;
                
-                    string nexurl = "http://cht.cjsyw.com:8080/ShipSource/getSSDetail.aspx?userid=" + user.token + "&kcid=" + entity.APara + "";
+             
+                    string nexurl = "http://t.cjcyw.com:8081/ship/detail";
                     clsPageUrl.AddPageUrl(entity.ProgramName, entity.KeyWord, entity.PID, "cyDetail", entity.SiteUrl, entity.Url, nexurl,
-                    "GET", "", entity.EnCode, entity.APara, entity.CookieContent, entity.AContent, entity.TrySpiderTimes, entity.Depth + 1);
+                    "POST", entity.APara, entity.EnCode, entity.APara, getuser().cookieContainer, entity.AContent, entity.TrySpiderTimes, entity.Depth + 1);
 
 
                 }
                 else if (!string.IsNullOrEmpty(content2))
                 {
-                    string _datastr = "";
-                    //创建文件夹
+                    if (rf.GetStr(content2, "\"publishTel\":", ",").IndexOf("*") >= 0) {
+                        Program.helper.OntxtviewCompleted(this, new EventControllerArgs() { IsSuccess = true, Msg = "查看" });
 
-                    string Path = "down\\船源数据.txt";
-                    if (!File.Exists(Path))
-                    {
-                        using (new FileStream(Path, FileMode.Create, FileAccess.Write)) { };
+                        string nexurl = "http://t.cjcyw.com:8081/user/viewDetail?"+ entity.APara;
+                        HttpClient httpClient = new HttpClient("", 0, false, entity.CookieContent);
+                        string viewpon= httpClient.GetResponse("", nexurl, "Post", entity.APara);
+                        if (viewpon.IndexOf("积分") >= 0)
+                        {
+                            Program.helper.OntxtviewCompleted(this, new EventControllerArgs() { IsSuccess = true, Msg = "积分不足,切换账号" });
+                            nexurl = "http://t.cjcyw.com:8081/ship/detail";
+                            clsPageUrl.AddPageUrl(entity.ProgramName, entity.KeyWord, entity.PID, "cyDetail", entity.SiteUrl, entity.Url, nexurl,
+                            "POST", entity.APara, entity.EnCode, entity.APara, getuser().cookieContainer, entity.AContent, entity.TrySpiderTimes, entity.Depth + 1);
+
+                        }
+                        else {
+                            content2 = httpClient.GetResponse("", "http://t.cjcyw.com:8081/ship/detail", "Post", entity.APara);
+                        }
                     }
-                    using (StreamWriter sw = new StreamWriter(Path, true, Encoding.Default))
+
+                    if (rf.GetStr(content2, "\"publishTel\":", ",").IndexOf("*") < 0)
                     {
-
-                        _datastr += "<id>" + rf.GetStr(content2, "\"id\":", ",") + "</id>";
-                        _datastr += "<boatid>" + rf.GetStr(content2, "\"boatid\":", ",") + "</boatid>";
-                        _datastr += "<Privince>" + rf.GetStr(content2, "\"Privince\":\"", "\",") + "</Privince>";
-                        _datastr += "<city>" + rf.GetStr(content2, "\"city\":\"", "\",") + "</city>";
-                        _datastr += "<bz>" + rf.GetStr(content2, "\"bz\":\"", "\"") + "/bz>";
-
-                        _datastr += "<userid>" + rf.GetStr(content2, "\"userid\":", ",") + "/userid>";
-                        _datastr += "<gsmc>" + rf.GetStr(content2, "\"gsmc\":\"", "\",") + "</gsmc>";
-
-                        _datastr += "<szg>" + rf.GetStr(content2, "\"szg\":\"", "\",") + "</szg>";
-                        _datastr += "<mdg>" + rf.GetStr(content2, "\"mdg\":\"", "\",") + "</mdg>";
-                        _datastr += "<cpdw>" + rf.GetStr(content2, "\"cpdw\":\"", "\",") + "</cpdw>";
-                        _datastr += "<cplx>" + rf.GetStr(content2, "\"cplx\":\"", "\",") + "</cplx>";
-                        _datastr += "<kclb>" + rf.GetStr(content2, "\"kclb\":\"", "\",") + "</kclb>";
-                        _datastr += "<zhrq1>" + rf.GetStr(content2, "\"zhrq1\":\"", "\",") + "</zhrq1>";
-                        _datastr += "<zhrq2>" + rf.GetStr(content2, "\"zhrq2\":\"", "\",") + "</zhrq2>";
-                        _datastr += "<bzlb>" + rf.GetStr(content2, "\"bzlb\":\"", "\",") + "</bzlb>";
-                        _datastr += "<name>" + rf.GetStr(content2, "\"name\":\"", "\"") + "</name>";
-                        _datastr += "<mobile>" + rf.GetStr(content2, "\"mobile\":\"", "\",") + "</mobile>";
-
-                        string content3 = rf.GetStr(content2, "\"czxx\":", "}]");
-                        _datastr += "<czxxid>" + rf.GetStr(content3, "\"id\":", ",") + "</czxxid>";
-                        _datastr += "<lx>" + rf.GetStr(content3, "\"lx\":\"", "\",") + "</lx>";
-                        _datastr += "<Qymc>" + rf.GetStr(content3, "\"Qymc\":\"", "\",") + "</Qymc>";
-                        _datastr += "<Uname>" + rf.GetStr(content3, "\"Uname\":\"", "\",") + "</Uname>";
-                        _datastr += "<name>" + rf.GetStr(content3, "\"name\":\"", "\",") + "</name>";
-                        _datastr += "<mobile>" + rf.GetStr(content3, "\"mobile\":\"", "\",") + "</mobile>";
-                        _datastr += "<flag>" + rf.GetStr(content3, "\"flag\":", ",") + "</flag>";
-                        _datastr += "<hppj>" + rf.GetStr(content3, "\"hppj\":", ",") + "</hppj>";
-                        _datastr += "<ybpj>" + rf.GetStr(content3, "\"ybpj\":", ",") + "</ybpj>";
-                        _datastr += "<cppj>" + rf.GetStr(content3, "\"cppj\":", ",") + "</cppj>";
-                        _datastr += "<userimg>" + rf.GetStr(content3, "\"userimg\":\"", "\"") + "</userimg>";
-
-                        string content4 = rf.GetStr(content2, "\"ds\":", "}");
-                        if (!string.IsNullOrEmpty(rf.GetStr(content4, "\"ch\":\"", "\",")))
+                        string _datastr = "";
+                        //创建文件夹
+                        string Path = "down\\船源数据.txt";
+                        if (!File.Exists(Path))
                         {
-                            _datastr += "<ch>" + rf.GetStr(content4, "\"ch\":\"", "\",") + "</ch>";
-                            _datastr += "<sf>" + rf.GetStr(content4, "\"sf\":\"", "\",") + "</sf>";
-                            _datastr += "<city>" + rf.GetStr(content4, "\"city\":\"", "\",") + "</city>";
-                            _datastr += "<sc>" + rf.GetStr(content4, "\"sc\":\"", "\",") + "</sc>";
-                            _datastr += "<cc>" + rf.GetStr(content4, "\"cc\":\"", "\",") + "</cc>";
-                            _datastr += "<ck>" + rf.GetStr(content4, "\"ck\":\"", "\",") + "</ck>";
-                            _datastr += "<cs>" + rf.GetStr(content4, "\"cs\":\"", "\"") + "</cs>";
+                            using (new FileStream(Path, FileMode.Create, FileAccess.Write)) { };
                         }
-                        else
+                        using (StreamWriter sw = new StreamWriter(Path, true, Encoding.Default))
                         {
 
+                            _datastr += "<id>" + rf.GetStr(content2, "\"id\":", ",") + "</id>";
+                            _datastr += "<boatid>" + rf.GetStr(content2, "\"boatid\":", ",") + "</boatid>";
+                            _datastr += "<Privince>" + rf.GetStr(content2, "\"Privince\":\"", "\",") + "</Privince>";
+                            _datastr += "<city>" + rf.GetStr(content2, "\"city\":\"", "\",") + "</city>";
+                            _datastr += "<bz>" + rf.GetStr(content2, "\"bz\":\"", "\"") + "/bz>";
 
-                            _datastr += "<ch></ch>";
-                            _datastr += "<sf></sf>";
-                            _datastr += "<city></city>";
-                            _datastr += "<sc></sc>";
-                            _datastr += "<cc></cc>";
-                            _datastr += "<ck></ck>";
-                            _datastr += "<cs></cs>";
+                            _datastr += "<userid>" + rf.GetStr(content2, "\"userid\":", ",") + "/userid>";
+                            _datastr += "<gsmc>" + rf.GetStr(content2, "\"gsmc\":\"", "\",") + "</gsmc>";
 
+                            _datastr += "<szg>" + rf.GetStr(content2, "\"szg\":\"", "\",") + "</szg>";
+                            _datastr += "<mdg>" + rf.GetStr(content2, "\"mdg\":\"", "\",") + "</mdg>";
+                            _datastr += "<cpdw>" + rf.GetStr(content2, "\"cpdw\":\"", "\",") + "</cpdw>";
+                            _datastr += "<cplx>" + rf.GetStr(content2, "\"cplx\":\"", "\",") + "</cplx>";
+                            _datastr += "<kclb>" + rf.GetStr(content2, "\"kclb\":\"", "\",") + "</kclb>";
+                            _datastr += "<zhrq1>" + rf.GetStr(content2, "\"zhrq1\":\"", "\",") + "</zhrq1>";
+                            _datastr += "<zhrq2>" + rf.GetStr(content2, "\"zhrq2\":\"", "\",") + "</zhrq2>";
+                            _datastr += "<bzlb>" + rf.GetStr(content2, "\"bzlb\":\"", "\",") + "</bzlb>";
+                            _datastr += "<name>" + rf.GetStr(content2, "\"name\":\"", "\"") + "</name>";
+                            _datastr += "<mobile>" + rf.GetStr(content2, "\"mobile\":\"", "\",") + "</mobile>";
+
+                            string content3 = rf.GetStr(content2, "\"czxx\":", "}]");
+                            _datastr += "<czxxid>" + rf.GetStr(content3, "\"id\":", ",") + "</czxxid>";
+                            _datastr += "<lx>" + rf.GetStr(content3, "\"lx\":\"", "\",") + "</lx>";
+                            _datastr += "<Qymc>" + rf.GetStr(content3, "\"Qymc\":\"", "\",") + "</Qymc>";
+                            _datastr += "<Uname>" + rf.GetStr(content3, "\"Uname\":\"", "\",") + "</Uname>";
+                            _datastr += "<name>" + rf.GetStr(content3, "\"name\":\"", "\",") + "</name>";
+                            _datastr += "<mobile>" + rf.GetStr(content3, "\"mobile\":\"", "\",") + "</mobile>";
+                            _datastr += "<flag>" + rf.GetStr(content3, "\"flag\":", ",") + "</flag>";
+                            _datastr += "<hppj>" + rf.GetStr(content3, "\"hppj\":", ",") + "</hppj>";
+                            _datastr += "<ybpj>" + rf.GetStr(content3, "\"ybpj\":", ",") + "</ybpj>";
+                            _datastr += "<cppj>" + rf.GetStr(content3, "\"cppj\":", ",") + "</cppj>";
+                            _datastr += "<userimg>" + rf.GetStr(content3, "\"userimg\":\"", "\"") + "</userimg>";
+
+                            string content4 = rf.GetStr(content2, "\"ds\":", "}");
+                            if (!string.IsNullOrEmpty(rf.GetStr(content4, "\"ch\":\"", "\",")))
+                            {
+                                _datastr += "<ch>" + rf.GetStr(content4, "\"ch\":\"", "\",") + "</ch>";
+                                _datastr += "<sf>" + rf.GetStr(content4, "\"sf\":\"", "\",") + "</sf>";
+                                _datastr += "<city>" + rf.GetStr(content4, "\"city\":\"", "\",") + "</city>";
+                                _datastr += "<sc>" + rf.GetStr(content4, "\"sc\":\"", "\",") + "</sc>";
+                                _datastr += "<cc>" + rf.GetStr(content4, "\"cc\":\"", "\",") + "</cc>";
+                                _datastr += "<ck>" + rf.GetStr(content4, "\"ck\":\"", "\",") + "</ck>";
+                                _datastr += "<cs>" + rf.GetStr(content4, "\"cs\":\"", "\"") + "</cs>";
+                            }
+                            else
+                            {
+
+
+                                _datastr += "<ch></ch>";
+                                _datastr += "<sf></sf>";
+                                _datastr += "<city></city>";
+                                _datastr += "<sc></sc>";
+                                _datastr += "<cc></cc>";
+                                _datastr += "<ck></ck>";
+                                _datastr += "<cs></cs>";
+
+                            }
+                            //开始写入
+                            sw.Write(_datastr + "\r\n");
+                            controllerArgs.Msg = "已抓到吨位" + rf.GetStr(content2, "\"cpdw\":\"", "\",") + "所在地" + rf.GetStr(content2, "\"szg\":\"", "\",") + rf.GetStr(content2, "\"cplx\":\"", "\",");
                         }
-                        //开始写入
-                        sw.Write(_datastr + "\r\n");
-                        controllerArgs.Msg = "已抓到吨位" + rf.GetStr(content2, "\"cpdw\":\"", "\",") + "所在地" + rf.GetStr(content2, "\"szg\":\"", "\",") + rf.GetStr(content2, "\"cplx\":\"", "\",");
                     }
                 }
 
@@ -243,7 +266,7 @@ namespace Spider.Analysis
                 {
                     controllerArgs.Msg = "操作频繁切换用户补抓" + user.token;
 
-                    string nexurl = "http://cht.cjsyw.com:8080//Goods/FindGoodsDetails.aspx?userid=" + user.token + "&hwid=" + entity.APara + "";
+                    string nexurl = "http://t.cjcyw.com:8081//Goods/FindGoodsDetails.aspx?userid=" + user.token + "&hwid=" + entity.APara + "";
                     clsPageUrl.AddPageUrl(entity.ProgramName, entity.KeyWord, entity.PID, "cyDetail", entity.SiteUrl, entity.Url, nexurl,
                     "GET", "", entity.EnCode, entity.APara, entity.CookieContent, entity.AContent, entity.TrySpiderTimes, entity.Depth + 1);
 
@@ -328,7 +351,7 @@ namespace Spider.Analysis
                 if (rf.GetStr(content2, "\"mobile\":\"", "\",") == "操作频繁稍后再试！")
                 {
                     controllerArgs.Msg = "操作频繁切换用户补抓" + user.token;
-                    string nexurl = "http://cht.cjsyw.com:8080/Boat/getBoatById.aspx?userid=" + user.token + "&id=" + entity.APara + "";
+                    string nexurl = "http://t.cjcyw.com:8081/Boat/getBoatById.aspx?userid=" + user.token + "&id=" + entity.APara + "";
                     clsPageUrl.AddPageUrl(entity.ProgramName, entity.KeyWord, entity.PID, "cyDetail", entity.SiteUrl, entity.Url, nexurl,
                     "GET", "", entity.EnCode, entity.APara, entity.CookieContent, entity.AContent, entity.TrySpiderTimes, entity.Depth + 1);
 
@@ -345,7 +368,6 @@ namespace Spider.Analysis
                     {
                         using (new FileStream(Path, FileMode.Create, FileAccess.Write)) { };
                     }
-
                     using (StreamWriter sw = new StreamWriter(Path, true, Encoding.Default))
                     {
 

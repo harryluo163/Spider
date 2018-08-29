@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Spider;
 using Spider.Common;
 using Spider.Configuration;
+using static Spider.EventController;
 
 namespace Spider.Spider
 {
@@ -50,7 +51,7 @@ namespace Spider.Spider
 
         }
 
-        public async void SpiderData()
+        public  void SpiderData()
         {
             Log.ClsLog clsLog = new Log.ClsLog();
             Page.ClsPageContent clsPageContent = new Page.ClsPageContent();
@@ -64,13 +65,19 @@ namespace Spider.Spider
             Common.NetContorl netContorl = new Common.NetContorl();
 
             CancellationTokenSource tokenSource = new CancellationTokenSource();
-            HttpClient _client =  new HttpClient("", 0, false);
+            CookieContainer cookie = new CookieContainer();
+            HttpClient _client =  new HttpClient("", 0, false, cookie);
             //Links.ForEach(url =>//串行
             //Parallel.ForEach<PageUrlEntity>(Program.pageUrlList.GetConsumingEnumerable(), new ParallelOptions() { MaxDegreeOfParallelism = 5 }, pageUrlEntity =>
             //找出要抓取的Url
             foreach (PageUrlEntity pageUrlEntity in Program.pageUrlList.GetConsumingEnumerable())
             {
 
+                if (pageUrlEntity.CookieContent!=null) {
+
+                    _client = new HttpClient("", 0, false, pageUrlEntity.CookieContent);
+                    cookie = pageUrlEntity.CookieContent;
+                }
                 //判断分析队列中的页面数是否大于最大分析队列页面数，如果大于则休眠系统设置时间
                 if (Program.clsContentSignal >= Program.sysPara.MaxPage)
                 {
@@ -83,12 +90,20 @@ namespace Spider.Spider
                     while (proxy == null)
                     {
                         Thread.Sleep(Program.sysPara.NetSleepTime);
-                        proxy = netContorl.GetProxyEntity_URL();
+                        proxy = netContorl.GetProxyEntity_URL2();
                     }
                     proxy.proxyAddess = proxy.proxyAddess.Replace("http://","");
-                    _client = new HttpClient(proxy.proxyAddess.Split(':')[0].ToString(), Convert.ToInt32(proxy.proxyAddess.Split(':')[1].ToString()), true);
+                    if (pageUrlEntity.CookieContent.Count > 0)
+                    {
+
+                        _client = new HttpClient("", 0, false, pageUrlEntity.CookieContent);
+                        cookie = pageUrlEntity.CookieContent;
+                    }
+                    else {
+                        _client = new HttpClient(proxy.proxyAddess.Split(':')[0].ToString(), Convert.ToInt32(proxy.proxyAddess.Split(':')[1].ToString()), true,null);
+                    }
                 }
-             
+                int _spidertime = 1;
                 //开始抓取数据
                 try
                 {
@@ -121,19 +136,71 @@ namespace Spider.Spider
                     }
                     catch (Exception ex)
                     {
+               
                         clsLog.AddLog(DateTime.Now.ToString(), "抓取数据失败" + ex.ToString());
                         clsLog.AddLog(DateTime.Now.ToString(), pageUrlEntity.SType + ";" + pageUrlEntity.Url + ";");
-                        urlContorl.SaveUrl(pageUrlEntity, PContent, ex.ToString());
+                        Program.helper.OntxtviewCompleted(this, new EventControllerArgs() { IsSuccess = true, Msg = "抓取数据失败" + ex.ToString() });
+                        Program.helper.OntxtviewCompleted(this, new EventControllerArgs() { IsSuccess = true, Msg = pageUrlEntity.SType + ";" + pageUrlEntity.Url + ";" });
+
+                        //urlContorl.SaveUrl(pageUrlEntity, PContent, ex.ToString());
+
+                        //错误页面重抓
+                        if (_spidertime < 4)
+                        {
+                            Program.helper.OntxtviewCompleted(this, new EventControllerArgs() { IsSuccess = true, Msg = "错误页面重抓" });
+                            if (Program.sysPara.IsProxy == "true")
+                            {
+                                proxy = netContorl.GetProxyEntity_URL2();
+                                while (proxy == null)
+                                {
+                                    Thread.Sleep(Program.sysPara.NetSleepTime);
+                                    proxy = netContorl.GetProxyEntity_URL2();
+                                }
+                                proxy.proxyAddess = proxy.proxyAddess.Replace("http://", "");
+                                _client = new HttpClient(proxy.proxyAddess.Split(':')[0].ToString(), Convert.ToInt32(proxy.proxyAddess.Split(':')[1].ToString()), true, pageUrlEntity.CookieContent);
+                            }
+
+
+                            PContent = "";
+                            MContent = null;
+                            Program.helper.OntxtviewCompleted(this, new EventControllerArgs() { IsSuccess = true, Msg = "第" + _spidertime + "次重抓" });
+                            if (pageUrlEntity.UrlType == "MGET")
+                            {
+                                PContent = _client.GetResponse(pageUrlEntity.SourUrl, pageUrlEntity.Url, pageUrlEntity.UrlType, pageUrlEntity.UrlPara, pageUrlEntity.EnCode);
+                                pageUrlEntity.CookieContent = cookies;
+                                pageUrlEntity.PContent = "";
+                                if (MContent == null) throw new Exception("空图片");
+                                clsPageContent.AddPageContent(pageUrlEntity, MContent);
+
+                            }
+                            else
+                            {
+                                PContent = _client.GetResponse(pageUrlEntity.SourUrl, pageUrlEntity.Url, pageUrlEntity.UrlType, pageUrlEntity.UrlPara, pageUrlEntity.EnCode);
+                                pageUrlEntity.CookieContent = cookies;
+                                pageUrlEntity.PContent = PContent;
+                                if (string.IsNullOrEmpty(PContent)) throw new Exception("空页面");
+                                if (PContent.Contains("超时")) throw new Exception("操作超时");
+                                clsPageContent.AddPageContent(pageUrlEntity, PContent);
+                            }
+                            Thread.Sleep(Program.sysPara.BegSpiderIntervalTime + Program.sysPara.IntervalSpiderIntervalTime * (Program.CurrSpiderTimes - 1));
+
+                            _spidertime++;
+                        }
+
+
                     }
                 }
                 catch (Exception ex)
                 {
                     clsLog.AddLog(DateTime.Now.ToString(), "抓取失败" + ex.ToString());
                     clsLog.AddLog(DateTime.Now.ToString(), pageUrlEntity.SType + ";" + pageUrlEntity.Url + ";");
-                    urlContorl.SaveUrl(pageUrlEntity, PContent, ex.ToString());
+                    Program.helper.OntxtviewCompleted(this, new EventControllerArgs() { IsSuccess = true, Msg = "抓取数据失败" + ex.ToString() });
+                    Program.helper.OntxtviewCompleted(this, new EventControllerArgs() { IsSuccess = true, Msg = pageUrlEntity.SType + ";" + pageUrlEntity.Url + ";" });
+
+                    //urlContorl.SaveUrl(pageUrlEntity, PContent, ex.ToString());
                 }
                 Interlocked.Decrement(ref Program.clsUrlSignal);
-
+                Program.helper.OnAllItemAnalyzeCompleted(this, new EventControllerArgs() { IsSuccess = true });
                 Thread.Sleep(Program.sysPara.BegSpiderIntervalTime + Program.sysPara.IntervalSpiderIntervalTime * (Program.CurrSpiderTimes - 1));
 
             }

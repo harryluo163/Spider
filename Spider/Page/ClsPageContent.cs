@@ -7,6 +7,7 @@ using System.Drawing;
 using System.Threading.Tasks;
 using Spider.Analysis;
 using DataSpider.Page;
+using static Spider.EventController;
 
 namespace Spider.Page
 {
@@ -120,7 +121,7 @@ namespace Spider.Page
                     else
                     {
                         //保存抓取失败数据
-                        urlContorl.SaveUrl(pageContentEntity, "页面数据为空");
+                        //urlContorl.SaveUrl(pageContentEntity, "页面数据为空");
                         clsLog.AddLog(DateTime.Now.ToString(), "抓取数据失败");
                         clsLog.AddLog(DateTime.Now.ToString(), pageContentEntity.SType + ";" + pageContentEntity.Url);
                     }
@@ -130,10 +131,11 @@ namespace Spider.Page
                 {
                     clsLog.AddLog(DateTime.Now.ToString(), "分析数据失败" + ex.ToString());
                     clsLog.AddLog(DateTime.Now.ToString(), pageContentEntity.SType + ";" + pageContentEntity.PID + ";" + pageContentEntity.Url);
-                    urlContorl.SaveUrl(pageContentEntity, ex.ToString());
+                    //urlContorl.SaveUrl(pageContentEntity, ex.ToString());
                 }
 
                 Interlocked.Decrement(ref Program.clsContentSignal);
+                Program.helper.OnAllItemAnalyzeCompleted(this, new EventControllerArgs() { IsSuccess = true });
             }
         
             

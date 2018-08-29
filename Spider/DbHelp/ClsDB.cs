@@ -52,7 +52,7 @@ namespace Spider.DbHelp
               }
               catch (Exception ex)
               {
-                  urlContorl.SaveUrl(dbEntity.pageContentEntity, ex.ToString());
+                  //urlContorl.SaveUrl(dbEntity.pageContentEntity, ex.ToString());
                   clsLog.AddLog(DateTime.Now.ToString(), "执行数据失败" + ex.ToString());
                   clsLog.AddLog(DateTime.Now.ToString(), dbEntity.pageContentEntity.SType + ";" + dbEntity.pageContentEntity.PID + ";" + dbEntity.pageContentEntity.Url + "");
               }
